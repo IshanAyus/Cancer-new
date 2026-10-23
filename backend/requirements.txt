@@ -1,4 +1,4 @@
-fastapi==0.109.0
+fastapi==0.151.0
 uvicorn[standard]==0.27.0
 python-multipart==0.0.6
 opencv-python==4.14.0.94
