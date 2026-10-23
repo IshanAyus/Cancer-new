@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: braintumor-api
+    env: docker
+    dockerfilePath: backend/Dockerfile
+    envVars:
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: BRISC_MODEL_DIR
+        value: /app/models
+    healthCheckPath: /health
+    autoDeploy: true
+
+  - type: web
+    name: braintumor-frontend
+    env: docker
+    dockerfilePath: frontend/Dockerfile
+    envVars:
+      - key: VITE_API_URL
+        value: https://braintumor-api.onrender.com
+    autoDeploy: true
