@@ -1,20 +1,21 @@
-from fastapi import FastAPI, File, UploadFile, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
-from pydantic import BaseModel
-from typing import List, Optional
+#!/usr/bin/env python3
+"""BRISC Brain Tumor Analysis API"""
+
+import base64
+import io
+import os
+from pathlib import Path
+
+import cv2
+import httpx
+import numpy as np
 import torch
 import torch.nn.functional as F
 import torchvision.transforms as T
+from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
 from PIL import Image
-import io
-import base64
-import numpy as np
-import cv2
-from pathlib import Path
-import json
-import os
-import httpx
+from pydantic import BaseModel
 
 app = FastAPI(title="BRISC Brain Tumor Analysis API")
 
@@ -58,16 +59,16 @@ def load_models():
     try:
         import timm
         classification_model = timm.create_model(
-            "mambaout_small_rw",  # matches trained checkpoint
+            "resnext50_32x4d",  # matches trained checkpoint
             pretrained=False,
             num_classes=4
         )
-        cls_ckpt = MODEL_DIR / "mambaout_brisc.pth"
+        cls_ckpt = MODEL_DIR / "resnext50_brisc.pth"
         if cls_ckpt.exists():
             classification_model.load_state_dict(torch.load(cls_ckpt, map_location=DEVICE))
         classification_model.to(DEVICE).eval()
-        print("✓ Classification model loaded (mambaout_small_rw)")
-    except Exception as e:
+        print("✓ Classification model loaded (resnext50_32x4d)")
+    except (RuntimeError, OSError, KeyError) as e:
         print(f"✗ Classification model failed: {e}")
         classification_model = None
 
@@ -76,7 +77,7 @@ def load_models():
         from models.bgsf import load_bgsf
         segmentation_model = load_bgsf(MODEL_DIR / "bgsf_brisc.pth", device=DEVICE)
         print("✓ Segmentation model loaded (BGSF)")
-    except Exception as e:
+    except (RuntimeError, OSError, KeyError) as e:
         print(f"⚠ Segmentation model failed, will use fallback: {e}")
         segmentation_model = None
 
@@ -185,9 +186,7 @@ async def generate_ai_summary(cls_probs: dict, seg_mask: np.ndarray, gradcam_map
     # Only flag discrepancy if BOTH classification and segmentation are confident
     # and they disagree
     discrepancy = False
-    if has_tumor_class and not has_tumor_seg and confidence > 0.8:
-        discrepancy = True
-    elif not has_tumor_class and has_tumor_seg:
+    if has_tumor_class and not has_tumor_seg and confidence > 0.8 or not has_tumor_class and has_tumor_seg:
         discrepancy = True
     
     # Build prompt for Gemini
@@ -234,7 +233,7 @@ Generate a professional clinical summary with:
             response.raise_for_status()
             data = response.json()
             return data["candidates"][0]["content"]["parts"][0]["text"]
-    except Exception as e:
+    except (httpx.HTTPError, KeyError, ValueError):
         # Fallback to template summary
         return f"""**AI Diagnostic Summary**
 
@@ -279,12 +278,14 @@ async def health():
         "gradcam_ready": gradcam_extractor is not None
     }
 
+FILE_DEFAULT = File(default=None)
+
 @app.post("/analyze", response_model=AnalysisResponse)
-async def analyze_image(file: UploadFile = File(...)):
+async def analyze_image(file: UploadFile = FILE_DEFAULT):
     import time
     start = time.time()
     
-    if not file.content_type.startswith("image/"):
+    if file is None or not file.content_type.startswith("image/"):
         raise HTTPException(400, "File must be an image")
     
     # Load image
@@ -312,7 +313,7 @@ async def analyze_image(file: UploadFile = File(...)):
         
         # GradCAM++
         if gradcam_extractor is not None:
-            cam, pred_idx = gradcam_extractor.generate(input_tensor)
+            cam, _pred_idx = gradcam_extractor.generate(input_tensor)
             gradcam_map = cam
             overlay = overlay_heatmap(
                 cv2.resize(original_np, (224, 224)), 
@@ -322,6 +323,7 @@ async def analyze_image(file: UploadFile = File(...)):
     
     # ─── SEGMENTATION ───
     seg_mask_b64 = ""
+    prob_mask = None
     if segmentation_model is not None:
         try:
             seg_input = seg_transform(pil_image).unsqueeze(0).to(DEVICE)
@@ -333,7 +335,7 @@ async def analyze_image(file: UploadFile = File(...)):
                     logits = outputs
                 prob_mask = torch.sigmoid(logits)[0, 0].cpu()
                 seg_mask_b64 = tensor_to_base64(prob_mask)
-        except Exception as e:
+        except (RuntimeError, OSError, ValueError) as e:
             print(f"Segmentation inference failed: {e}")
             seg_mask_b64 = ""
     
@@ -374,9 +376,8 @@ async def analyze_image(file: UploadFile = File(...)):
         seg_mask_b64 = tensor_to_base64(dummy_mask)
     
     # ─── AI SUMMARY ───
-    ai_summary = await generate_ai_summary(cls_probs, 
-                                         prob_mask.numpy() if 'prob_mask' in locals() else np.zeros((256,256)),
-                                         gradcam_map)
+    seg_for_summary = prob_mask.numpy() if prob_mask is not None else np.zeros((256, 256))
+    ai_summary = await generate_ai_summary(cls_probs, seg_for_summary, gradcam_map)
     
     processing_time = (time.time() - start) * 1000
     

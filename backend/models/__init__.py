@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """BRISC Models Package"""
 from .bgsf import BGSF, BGSFFusion, load_bgsf
 

@@ -1,11 +1,12 @@
-"""
-BGSF (Boundary-Guided Segmentation Fusion) Model
+#!/usr/bin/env python3
+"""BGSF (Boundary-Guided Segmentation Fusion) Model
+
 Matches the architecture from your paper.
 """
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
 import timm
+import torch
+import torch.nn.functional as F
+from torch import nn
 
 
 class ConvBNAct(nn.Module):
@@ -86,7 +87,7 @@ class BGSF(nn.Module):
         encoder_channels = self.encoder.feature_info.channels()  # [96, 192, 384, 768]
         
         # Decoders at 1/4 resolution (H/4, W/4)
-        target_h = target_w = 256 // 4  # 64
+        _target_w = 256 // 4  # 64
         
         self.seg_decoder = SegDecoder(encoder_channels, 256)
         self.bnd_decoder = SegDecoder(encoder_channels, 128)  # half capacity
@@ -98,7 +99,7 @@ class BGSF(nn.Module):
     
     def forward(self, x):
         # x: [B, 3, H, W] where H=W=256
-        B, _, H, W = x.shape
+        _B, _, H, W = x.shape
         h4, w4 = H // 4, W // 4
         
         # Encoder
