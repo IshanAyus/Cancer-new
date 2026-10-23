@@ -6,7 +6,7 @@ A complete web application for brain tumor classification, segmentation, and exp
 
 ```
 ┌─────────────────┐     ┌─────────────────┐
-│   React/Vite    │────▶│    FastAPI      │
+│   React/Vite    │───▶│    FastAPI      │
 │   Frontend      │     │    Backend      │
 │   (Port 3000)   │     │    (Port 8000)  │
 └─────────────────┘     └────────┬────────┘
