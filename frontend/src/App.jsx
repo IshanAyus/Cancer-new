@@ -85,7 +85,7 @@ function App() {
     return (
       <div className="app">
         <header>
-          <h1>🧠 BRISC Brain Tumor Analysis</h1>
+          <h1>BRISC Brain Tumor Analysis</h1>
           <p>Upload a T1-weighted contrast-enhanced MRI for AI-powered classification, segmentation & explainability</p>
         </header>
         <main>
@@ -106,7 +106,7 @@ function App() {
   return (
     <div className="app">
       <header>
-        <h1>🧠 BRISC Brain Tumor Analysis</h1>
+        <h1>BRISC Brain Tumor Analysis</h1>
         <p>Upload a T1-weighted contrast-enhanced MRI for AI-powered classification, segmentation & explainability</p>
       </header>
       <main className="layout">
@@ -141,7 +141,7 @@ function App() {
           {results ? (
             <>
               <div className="panel classification-panel">
-                <h3>📊 Classification</h3>
+                <h3>Classification</h3>
                 <ClassificationChart probs={results.classification} />
               </div>
               
@@ -189,7 +189,7 @@ function App() {
               </div>
               
               <div className="panel summary-panel">
-                <h3>🤖 AI Summary</h3>
+                <h3>AI Summary</h3>
                 <pre className="summary-text">{results.ai_summary}</pre>
                 <div className="meta">
                   Processing time: {results.processing_time_ms.toFixed(0)}ms
@@ -219,7 +219,7 @@ function UploadZone({ onDragOver, onDragLeave, onDrop, onClick, fileInputRef, ha
     >
       <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileChange} hidden />
       <div className="upload-content">
-        <span className="icon">📁</span>
+        <span className="icon">[UPLOAD]</span>
         <p>Drag & drop MRI image here, or click to browse</p>
         <span className="hint">Supports: PNG, JPG, DICOM (converted)</span>
       </div>
